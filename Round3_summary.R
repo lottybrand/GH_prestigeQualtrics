@@ -107,29 +107,32 @@ condModel_cf <- map2stan(
 precis(condModel_cf)
 compare(condModel_cf,nullModel_cf)
 
-#copyPrestige models: 
+
+#overall copyScore models:
+#rethinking
 
 
-nullModel_cp <- map2stan(
-  alist(CopCopied ~ dnorm(mu, sigma),
+nullModel_cS <- map2stan(
+  alist(Copied_score ~ dnorm(mu, sigma),
         mu <- a,
         a ~ dnorm(0,10),
         sigma ~ dunif(0,10)),
   data=Round3Summary, warmup = 1000, iter=2000, chains=1, cores = 1)
 
-precis(nullModel_cp)
+precis(nullModel_cS)
 
 
-condModel_cp <- map2stan(
-  alist(CopCopied ~ dnorm(mu, sigma),
+condModel_cS <- map2stan(
+  alist(Copied_score ~ dnorm(mu, sigma),
         mu <- a + b_b*CondB + b_c*CondC,
         a ~ dnorm(0,10),
         c(b_b,b_c) ~ dnorm(0,1),
         sigma ~ dunif(0,10)),
   data=Round3Summary, warmup = 1000, iter=2000, chains=1, cores = 1)
 
-precis(condModel_cp)
-compare(condModel_cp,nullModel_cp)
+precis(condModel_cS)
+compare(condModel_cS,nullModel_cS)
+
 
 #loading the info choice data isolated from the bigger qualtrics file: 
 
@@ -193,23 +196,44 @@ prestige_model <- map2stan(
 precis(prestige_model)
 compare(null_prestige,prestige_model)
 
+NParticipants = length(unique(copyData$idNum))
+OldID <- copyData$idNum
+ParticipantID <- array(0,length(copyData$idNum))
+for (index in 1:NParticipants){
+  ParticipantID[OldID == unique(OldID)[index]] = index
+}
+table(ParticipantID)
+copyData$ID <- ParticipantID
+
 #multi-level taking ppt into account? (should check for Q too?)
 prestige_ml <- map2stan(
   alist(
     prestige ~ dbinom(1, p),
-    logit(p) <- a + a_p[idNum]*sigma_p +
+    logit(p) <- a + a_p[ID]*sigma_p +
       b_b*CondB +
       b_c*CondC,
     a ~ dnorm(0,10),
     c(b_b,b_c) ~ dnorm(0,4),
-    a_p[idNum] ~ dnorm(0,1),
+    a_p[ID] ~ dnorm(0,1),
     sigma_p ~ dcauchy(0,1)
   ),
   data=copyData, constraints=list(sigma_p="lower=0"),
-  warmup=1000, iter=2000, chains=3, cores=3)
+  warmup=1000, iter=2000, chains=1, cores=1)
 
-#won't run, possibly because most observations come from one idNum, but a few idNums provide many
-#observationsm e.g. 107 copied 41 times, shown in table below.  
+#didn't initially run because idNum was all higgle-de-piggle-de, needed to use James' magic code (lines 199-206 inserted above)
+precis(prestige_ml)
 
-summary(copyData$idNum)
-table(copyData$idNum)
+#compare to null multi-level:
+
+null_multi <- map2stan(
+  alist(prestige ~ dbinom(1,p),
+        logit(p) <- a + a_p[ID]*sigma_p,
+        a ~ dnorm(0,10),
+        a_p[ID] ~ dnorm(0,1),
+        sigma_p ~ dcauchy(0,1)
+  ),
+  data=copyData, warmup = 1000, iter=2000, chains=1, cores = 1)
+
+precis(null_multi)
+compare(null_multi,prestige_ml,prestige_model)
+

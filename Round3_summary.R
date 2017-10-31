@@ -237,3 +237,65 @@ null_multi <- map2stan(
 precis(null_multi)
 compare(null_multi,prestige_ml,prestige_model)
 
+#copyWho data:
+library(gtools)
+setwd("~/Desktop/Postdoc/Experiments:Ideas/QualtricsStudy/GH_prestigeQualtrics")
+copywhoData <- read.delim('copyWho.txt')
+
+#don't need this when re-named in excel. 
+#names(copywhoData) <- gsub("Copied", "copied", names(copywhoData))
+#names(copywhoData) <- gsub("copied", "", names(copywhoData))
+
+#remove NA columns (questions on which no one copied):
+copywhoData <- Filter(function(x)!all(is.na(x)), copywhoData)
+
+colnames(copywhoData)
+Qnums <- names(copywhoData[,colnames(copywhoData)[18:142]])
+#reshape the info choice data 
+copywhoData_r <- reshape(copywhoData, times = Qnums,
+                        varying = list(c(18:142)),
+                        v.names = c("copyWho"), 
+                        direction = "long")
+colnames(copywhoData_r)
+colnames(copywhoData_r)[20] <- "Qnums"
+copywhoData_r$id <- NULL
+copywhoData <- copywhoData_r
+copywhoData <- copywhoData[!(copywhoData$copyWho == "" | is.na(copywhoData$copyWho)), ]
+
+
+
+#Below Qs, most copied:
+copied5 <- c("Q1A","Q2A","Q3A","Q8A","QA9",
+             "Q10A","Q11A","Q12A","Q13A","Q18A","Q19A",
+             "Q20A","Q21A","Q22A","Q23A","Q28A","Q29A",
+             "Q30A","Q31A","Q32A","Q33A","Q38A","Q39A",
+             "Q40A","Q41A","Q42A","Q43A","Q48A","Q49A",
+             "Q50A","Q51A","Q52A","Q53A","Q58A","Q59A",
+             "Q60A","Q61A","Q62A","Q63A","Q68A","Q69A",
+             "Q70A","Q71A","Q72A","Q73A","Q78A","Q79A",
+             "Q80A","Q81A","Q82A","Q83A","Q88A","Q89A",
+             "Q90A","Q91A","Q92A","Q93A","Q98A","Q99A",
+             "Q100A")
+copied5B <- gsub("A", "B", copied5)
+copied5C <- gsub("B", "C", copied5B)              
+
+mcopiedQs <- c(copied5, copied5B, copied5C)
+
+copywhoData$mcopied <- ifelse((copywhoData$Qnums%in%mcopiedQs & copywhoData$copyWho == "I was copied 5 times"),1,
+                              ifelse((!copywhoData$Qnums%in%mcopiedQs & copywhoData$copyWho =="I was copied 4 times"),1,0))
+
+#Formula seems to work but need to check why Q7 has a "copied 5 times" entry, not according to Round3_Prep?!                        
+
+
+copywhoData$mcopied1 <- ifelse((copywhoData$copied1=="I was copied 5 times"),1,0)
+                              
+
+
+names(copywhoData) <- gsub("copied", "", names(copywhoData))
+
+col_names <- names(copywhoData[,colnames(copywhoData)[18:317]])
+as.numeric(col_names)
+sort(col_names)
+
+
+

@@ -235,7 +235,9 @@ null_multi <- map2stan(
   data=copyData, warmup = 1000, iter=2000, chains=1, cores = 1)
 
 precis(null_multi)
-compare(null_multi,prestige_ml,prestige_model)
+compare(null_multi,prestige_ml,prestige_model,null_prestige)
+plot(precis(prestige_ml,pars=c("a","b_b","b_c")))
+plot(precis(prestige_model))
 
 #copyWho data:
 library(gtools)
@@ -265,7 +267,7 @@ copywhoData <- copywhoData[!(copywhoData$copyWho == "" | is.na(copywhoData$copyW
 
 
 #Below Qs, most copied:
-copied5 <- c("Q1A","Q2A","Q3A","Q8A","QA9",
+mcopied5A <- c("Q1A","Q2A","Q3A","Q8A","QA9",
              "Q10A","Q11A","Q12A","Q13A","Q18A","Q19A",
              "Q20A","Q21A","Q22A","Q23A","Q28A","Q29A",
              "Q30A","Q31A","Q32A","Q33A","Q38A","Q39A",
@@ -276,26 +278,122 @@ copied5 <- c("Q1A","Q2A","Q3A","Q8A","QA9",
              "Q80A","Q81A","Q82A","Q83A","Q88A","Q89A",
              "Q90A","Q91A","Q92A","Q93A","Q98A","Q99A",
              "Q100A")
-copied5B <- gsub("A", "B", copied5)
-copied5C <- gsub("B", "C", copied5B)              
 
-mcopiedQs <- c(copied5, copied5B, copied5C)
+mcopied4A <- c("Q4A", "Q5A", "Q6A","Q7A",
+              "Q14A", "Q15A", "Q16A", "Q17A",
+              "Q24A", "Q25A", "Q26A", "Q27A",
+              "Q34A", "Q35A", "Q36A", "Q37A",
+              "Q44A", "Q45A", "Q46A", "Q47A",
+              "Q54A", "Q55A", "Q56A", "Q57A", 
+              "Q64A", "Q65A", "Q66A", "Q67A",
+              "Q74A", "Q75A", "Q76A", "Q77A",
+              "Q84A", "Q85A", "Q86A", "Q87A",
+              "Q94A", "Q95A", "Q96A", "Q97A")
 
-copywhoData$mcopied <- ifelse((copywhoData$Qnums%in%mcopiedQs & copywhoData$copyWho == "I was copied 5 times"),1,
-                              ifelse((!copywhoData$Qnums%in%mcopiedQs & copywhoData$copyWho =="I was copied 4 times"),1,0))
+mcopied6B <- c("Q1B", "Q3B", "Q5B", "Q6B", 
+              "Q11B", "Q13B", "Q15B", "Q16B",
+              "Q21B", "Q23B", "Q25B", "Q26B",
+              "Q31B", "Q33B", "Q35B", "Q36B", 
+              "Q41B", "Q43B", "Q45B", "Q46B",
+              "Q51B", "Q53B", "Q55B", "Q56B", 
+              "Q61B", "Q63B", "Q65B", "Q66B", 
+              "Q71B", "Q73B", "Q75B", "Q76B", 
+              "Q81B", "Q83B", "Q85B", "Q86B", 
+              "Q91B", "Q93B", "Q95B", "Q96B")
 
-#Formula seems to work but need to check why Q7 has a "copied 5 times" entry, not according to Round3_Prep?!                        
+mcopied5B <- c("Q2B", "Q7B", "Q9B", 
+               "Q12B", "Q17B", "Q19B", 
+               "Q22B", "Q27B", "Q29B", 
+               "Q32B", "Q37B", "Q39B", 
+               "Q42B", "Q47B", "Q49B", 
+               "Q52B", "Q57B", "Q59B", 
+               "Q62B", "Q67B", "Q69B", 
+               "Q72B", "Q77B", "Q79B",
+               "Q82B", "Q87B", "Q89B", 
+               "Q92B", "Q97B", "Q99B")
+
+mcopied4B <- c("Q4B", "Q8B", 
+               "Q10B", "Q14B", "Q18B", 
+               "Q20B", "Q24B", "Q28B",
+               "Q30B", "Q34B", "Q38B", 
+               "Q40B", "Q44B", "Q48B", 
+               "Q50B", "Q54B", "Q58B", 
+               "Q60B", "Q64B", "Q68B", 
+               "Q70B", "Q74B", "Q78B", 
+               "Q80B", "Q84B", "Q88B", 
+               "Q90B", "Q94B", "Q98B", 
+               "Q100B")
+
+mcopied6C <- gsub("B", "C", mcopied6B)
+mcopied5C <- gsub("B", "C", mcopied5B)
+mcopied4C <- gsub("B", "C", mcopied4B)
+
+mcopied6BC <- c(mcopied6B, mcopied6C)
+mcopied5BC <- c(mcopied5B, mcopied5C)
+mcopied4BC <- c(mcopied4B, mcopied4C)
+
+copywhoData$mcopied <- ifelse((copywhoData$Qnums%in%mcopied5A & copywhoData$copyWho == "I was copied 5 times"),1,
+                              ifelse((copywhoData$Qnums%in%mcopied4A & copywhoData$copyWho =="I was copied 4 times"),1,
+                                     ifelse((copywhoData$Qnums%in%mcopied6BC & copywhoData$copyWho =="I was copied 6 times"),1,
+                                            ifelse((copywhoData$Qnums%in%mcopied5BC & copywhoData$copyWho =="I was copied 5 times"),1,
+                                                   ifelse((copywhoData$Qnums%in%mcopied4BC & copywhoData$copyWho =="I was copied 4 times"),1,0)))))
+
+#thank god for that. now onto the model!                        
 
 
-copywhoData$mcopied1 <- ifelse((copywhoData$copied1=="I was copied 5 times"),1,0)
-                              
+NParticipants = length(unique(copywhoData$Idnum))
+OldID <- copywhoData$Idnum
 
+ParticipantID <- array(0,length(copywhoData$Idnum))
+for (index in 1:NParticipants){
+  ParticipantID[OldID == unique(OldID)[index]] = index
+}
 
-names(copywhoData) <- gsub("copied", "", names(copywhoData))
+table(ParticipantID)
+copywhoData$ID <- ParticipantID
 
-col_names <- names(copywhoData[,colnames(copywhoData)[18:317]])
-as.numeric(col_names)
-sort(col_names)
+#create condition A as baseline: 
+copywhoData$CondB <- ifelse(copywhoData$Condition =="B", 1, 0)
+copywhoData$CondC <- ifelse(copywhoData$Condition =="C", 1, 0)
 
+library(rethinking)
 
+copyMost_ml <- map2stan(
+  alist(
+    mcopied ~ dbinom(1, p),
+    logit(p) <- a + a_p[ID]*sigma_p +
+      b_b*CondB +
+      b_c*CondC,
+    a ~ dnorm(0,10),
+    c(b_b,b_c) ~ dnorm(0,4),
+    a_p[ID] ~ dnorm(0,1),
+    sigma_p ~ dcauchy(0,1)
+  ),
+  data=copywhoData, constraints=list(sigma_p="lower=0"),
+  warmup=1000, iter=2000, chains=1, cores=1)
 
+precis(copyMost_ml)
+
+null_copyMost_multi <- map2stan(
+  alist(mcopied ~ dbinom(1,p),
+        logit(p) <- a + a_p[ID]*sigma_p,
+        a ~ dnorm(0,10),
+        a_p[ID] ~ dnorm(0,1),
+        sigma_p ~ dcauchy(0,1)
+  ),
+  data=copywhoData, warmup = 1000, iter=2000, chains=1, cores = 1)
+precis(null_multi)
+
+#null copied 
+
+null_mcopied <- map2stan(
+  alist(mcopied ~ dbinom(1,p),
+        logit(p) <- a,
+        a ~ dnorm(0,10)
+  ),
+  data=copywhoData, warmup = 1000, iter=2000, chains=1, cores = 1)
+
+precis(null_mcopied)
+
+compare(null_copyMost_multi, copyMost_ml, null_mcopied)
+plot(precis(copyMost_ml, pars = c("a","b_b","b_c")))

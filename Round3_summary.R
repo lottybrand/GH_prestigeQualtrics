@@ -356,6 +356,10 @@ copywhoData$ID <- ParticipantID
 copywhoData$CondB <- ifelse(copywhoData$Condition =="B", 1, 0)
 copywhoData$CondC <- ifelse(copywhoData$Condition =="C", 1, 0)
 
+copywhoData$copyLeast <- ifelse(copywhoData$copyWho == "I was never copied", 1, 0)
+
+write.csv(copywhoData, "copyWhoData_3.11.17.csv")
+
 library(rethinking)
 
 copyMost_ml <- map2stan(
@@ -397,3 +401,46 @@ precis(null_mcopied)
 
 compare(null_copyMost_multi, copyMost_ml, null_mcopied)
 plot(precis(copyMost_ml, pars = c("a","b_b","b_c")))
+
+#copyLeast??
+
+copyLeast_ml <- map2stan(
+  alist(
+    copyLeast ~ dbinom(1, p),
+    logit(p) <- a + a_p[ID]*sigma_p +
+      b_b*CondB +
+      b_c*CondC,
+    a ~ dnorm(0,10),
+    c(b_b,b_c) ~ dnorm(0,4),
+    a_p[ID] ~ dnorm(0,1),
+    sigma_p ~ dcauchy(0,1)
+  ),
+  data=copywhoData, constraints=list(sigma_p="lower=0"),
+  warmup=1000, iter=2000, chains=1, cores=1)
+
+precis(copyLeast_ml)
+
+
+null_copyLeast_multi <- map2stan(
+  alist(copyLeast ~ dbinom(1,p),
+        logit(p) <- a + a_p[ID]*sigma_p,
+        a ~ dnorm(0,10),
+        a_p[ID] ~ dnorm(0,1),
+        sigma_p ~ dcauchy(0,1)
+  ),
+  data=copywhoData, warmup = 1000, iter=2000, chains=1, cores = 1)
+precis(null_copyLeast_multi)
+
+
+
+null_Leastcopied <- map2stan(
+  alist(copyLeast ~ dbinom(1,p),
+        logit(p) <- a,
+        a ~ dnorm(0,10)
+  ),
+  data=copywhoData, warmup = 1000, iter=2000, chains=1, cores = 1)
+
+precis(null_Leastcopied)
+
+compare(null_copyLeast_multi, copyLeast_ml, null_Leastcopied)
+plot(precis(null_Leastcopied))

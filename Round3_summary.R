@@ -444,3 +444,6 @@ precis(null_Leastcopied)
 
 compare(null_copyLeast_multi, copyLeast_ml, null_Leastcopied)
 plot(precis(null_Leastcopied))
+
+mean(copywhoData$copyLeast)
+#####are 15% of people non-conformist?? maybe...#####

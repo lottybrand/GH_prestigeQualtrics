@@ -45,11 +45,58 @@ Condition <-SummaryInfo2$Condition
 CopySum <- SummaryInfo2$CopySum
 CopyInfo <- SummaryInfo2$CopyInfo
 
+SummaryInfo2$PropCopied <- SummaryInfo2$CopySum/5000
+SummaryInfo2$PropCopied2 <- ifelse((SummaryInfo2$Condition=='A'), SummaryInfo2$CopySum/185,
+                                   ifelse((SummaryInfo2$Condition=='B'), SummaryInfo2$CopySum/107,
+                                          ifelse((SummaryInfo2$Condition=='C'), SummaryInfo2$CopySum/197, 0)))
+
 #plot the summary info
-sumPlot <- ggplot(SummaryInfo2, aes(Condition, CopySum, fill= CopyInfo)) +
-  stat_summary(fun.y=sum, geom = "bar", position = "dodge") 
+sumPlot <- ggplot(SummaryInfo2, aes(Condition, PropCopied, fill= CopyInfo)) +
+  stat_summary(fun.y=sum, geom = "bar", position = "dodge") + 
+  theme_bw()
 sumPlot
 
+
+propCopplot <- ggplot(SummaryInfo2, aes(Condition, PropCopied, fill=CopyInfo)) + 
+  stat_summary(fun.y = mean, geom = "bar", position = "dodge") + 
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.8, size = 1) + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "PropCopied") + 
+  scale_y_continuous(limits = c(0,NA))
+propCopplot
+
+propCopplot2 <- ggplot(SummaryInfo2, aes(Condition, PropCopied2, fill=CopyInfo)) + 
+  stat_summary(fun.y = mean, geom = "bar", position = "dodge") + 
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.8, size = 1) + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "PropCopied") + 
+  scale_y_continuous(limits = c(0,NA))
+propCopplot2
+
+copPropCondplot <- ggplot(Round3Summary, aes(Condition, copProp)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 3) + 
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.8, size = 1) + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "Copied Proportion") + 
+  scale_y_continuous(limits = c(0,NA))
+copPropCondplot
+
+propCopplot3 <- ggplot(Round3Summary, aes(Condition, copProp)) + 
+  stat_summary(fun.y = mean, geom = "bar") + 
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.8, size = 1) + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "PropCopied") + 
+  scale_y_continuous(limits = c(0,0.1))
+propCopplot3
+
+copyFreqPlot3 <- ggplot(Round3Summary, aes(Condition, CopyFreq)) + 
+  stat_summary(fun.y = sum, geom = "bar") + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "PropCopied") + 
+  scale_y_continuous(limits = c(0,NA))
+copyFreqPlot3
+
+plot(o_score ~ copProp, Round3Summary[Round3Summary$Condition=='B',])
+plot(o_score ~ copProp, Round3Summary[Round3Summary$Condition=='C',])
+
+plot(CopScore ~ copProp, Round3Summary[Round3Summary$Condition=='A',])
+plot(CopScore ~ copProp, Round3Summary[Round3Summary$Condition=='B',])
+plot(CopScore ~ copProp, Round3Summary[Round3Summary$Condition=='C',])
 
 
 
@@ -70,8 +117,10 @@ precis(nullModel)
 Round3Summary$CondB <- ifelse(Round3Summary$Condition =="B", 1, 0)
 Round3Summary$CondC <- ifelse(Round3Summary$Condition =="C", 1, 0)
 
+Round3Summary$Score <- Round3Summary$o_score/100
+
 condModel <- map2stan(
-  alist(o_score ~ dnorm(mu, sigma),
+  alist(Score ~ dnorm(mu, sigma),
         mu <- a + b_b*CondB + b_c*CondC,
         a ~ dnorm(0,10),
         c(b_b,b_c) ~ dnorm(0,1),
@@ -79,7 +128,15 @@ condModel <- map2stan(
   data=Round3Summary, warmup = 1000, iter=2000, chains=1, cores = 1)
 
 precis(condModel)
+plot(precis(condModel))
 compare(condModel,nullModel)
+
+Scoreplot <- ggplot(Round3Summary, aes(Condition, o_score)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 3) + 
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.8, size = 1) + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "Score") + 
+  scale_y_continuous(limits = c(0,NA))
+Scoreplot
 
 
 #overall copyFrequency models:
@@ -105,8 +162,17 @@ condModel_cf <- map2stan(
   data=Round3Summary, warmup = 1000, iter=2000, chains=1, cores = 1)
 
 precis(condModel_cf)
+plot(precis(condModel_cf))
 compare(condModel_cf,nullModel_cf)
 
+Round3Summary$copProp <- Round3Summary$CopyFreq/100
+
+CoppropPlot <- ggplot(Round3Summary, aes(Condition, copProp)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 3) + 
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar", width = 0.8, size = 1) + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "Copy Frequency") + 
+  scale_y_continuous(limits = c(0,0.5))
+CoppropPlot
 
 #overall copyScore models:
 #rethinking
@@ -222,7 +288,7 @@ prestige_ml <- map2stan(
 
 #didn't initially run because idNum was all higgle-de-piggle-de, needed to use James' magic code (lines 199-206 inserted above)
 precis(prestige_ml)
-
+plot(precis(prestige_ml))
 #compare to null multi-level:
 
 null_multi <- map2stan(
@@ -239,9 +305,16 @@ compare(null_multi,prestige_ml,prestige_model,null_prestige)
 plot(precis(prestige_ml,pars=c("a","b_b","b_c")))
 plot(precis(prestige_model))
 
+presPlot <- ggplot(copyData, aes(Condition, prestige)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 3) + 
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", width = 0.8, size = 1) + 
+  theme_bw(base_size = 14) + labs(x = "Condition", y = "Chose Prestige") + 
+  scale_y_continuous(limits = c(0,1))
+presPlot
+
 #copyWho data:
 library(gtools)
-setwd("~/Desktop/Postdoc/Experiments:Ideas/QualtricsStudy/GH_prestigeQualtrics")
+setwd("~/Desktop/Postdoc/QualtricsStudy/GH_prestigeQualtrics")
 copywhoData <- read.delim('copyWho.txt')
 
 #don't need this when re-named in excel. 
@@ -377,6 +450,7 @@ copyMost_ml <- map2stan(
   warmup=1000, iter=2000, chains=1, cores=1)
 
 precis(copyMost_ml)
+plot(precis(copyMost_ml))
 
 null_copyMost_multi <- map2stan(
   alist(mcopied ~ dbinom(1,p),
@@ -419,7 +493,7 @@ copyLeast_ml <- map2stan(
   warmup=1000, iter=2000, chains=1, cores=1)
 
 precis(copyLeast_ml)
-
+plot(precis(copyLeast_ml))
 
 null_copyLeast_multi <- map2stan(
   alist(copyLeast ~ dbinom(1,p),
